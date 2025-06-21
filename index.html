@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rhythm Game UI</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="gameContainer">
+    <div id="songSelectScreen" style="display:block; position:absolute; width:100%; height:100%; background:#111; color:#fff; z-index: 10;">
+      <h2>Choose a song</h2>
+      <div id="songList">
+         <!-- รายการเพลงจะถูกเพิ่มด้วย JS -->
+    </div>
+</div>
+    <div id="startScreen">
+      <div class="startMessage">
+        <h1>Rhythm Game</h1>
+        <p>Press SPACEBAR to Start</p>
+      </div>
+    </div>
+    <div id="scorePanel">
+      <div id="score">000000</div>
+      <div id="comboBonus">★ COMBO BONUS +0000</div>
+      <div id="bestScore">⭐ BEST SCORE 000000</div>
+      <!-- laneGlow จะย้ายไปวางใน JS ตามตำแหน่งจริง -->
+      <div id="flareEffect"></div>
+    </div>
+
+    <div id="laneContainer">
+      <canvas id="gameCanvas" width="1000" height="600"></canvas>
+      <div id="feedback">
+        <div id="comboNum">0</div>
+        <div id="feedbackText">PERFECT</div>
+      </div>
+    </div>
+
+    <div id="coverArt">
+      <img src="videoframe_117532.png" alt="Album Cover" />
+      <div class="songInfo">
+        <h3>Song</h3>
+        <p>Artist</p>
+      </div>
+      <button id="pauseBtn">⏸</button>
+    </div>
+
+    <div id="noteButtons">
+      <div class="noteBtn" data-key="Z">Z</div>
+      <div class="noteBtn" data-key="X">X</div>
+      <div class="noteBtn" data-key="N">N</div>
+      <div class="noteBtn" data-key="M">M</div>
+    </div>
+      <audio id="audio" src="Chocolate.mp3"></audio> <Chocolate.mp3>
+    </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
