@@ -465,6 +465,13 @@ startScreen.addEventListener("click", () => {
   }
 });
 
+const startButton = document.getElementById("startButton");
+
+startButton.addEventListener("click", () => {
+  if (!gameStarted && currentSong) {
+    startGame();
+  }
+});
 startScreen.addEventListener("touchstart", () => {
   if (!gameStarted && currentSong) {
     startGame();

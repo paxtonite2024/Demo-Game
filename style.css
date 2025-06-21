@@ -215,3 +215,21 @@ body {
   font-size: 24px;
   color: #0ff;
 }
+
+#startButton {
+  font-size: 24px;
+  padding: 12px 30px;
+  background-color: #0ff;
+  color: #000;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s, background-color 0.3s;
+  font-weight: bold;
+  margin-top: 20px;
+}
+
+#startButton:hover {
+  background-color: #00dddd;
+  transform: scale(1.05);
+}
