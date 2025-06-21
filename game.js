@@ -459,6 +459,17 @@ document.addEventListener("keydown", e => {
     startGame();
   }
 });
+startScreen.addEventListener("click", () => {
+  if (!gameStarted && currentSong) {
+    startGame();
+  }
+});
+
+startScreen.addEventListener("touchstart", () => {
+  if (!gameStarted && currentSong) {
+    startGame();
+  }
+});
 
 function startGame() {
   startScreen.style.display = "none";
