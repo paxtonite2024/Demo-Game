@@ -7,7 +7,14 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
+  <div id="resultScreen" style="display: none;">
+    <div class="resultContent">
+      <h2>Game Over</h2>
+      <p id="finalScore">Score: 000000</p>
+      <p id="finalCombo">Max Combo: 0</p>
+      <button onclick="goToSongSelect()">Play Again</button>
+    </div>
+  </div>
   <div id="gameContainer">
     <div id="songSelectScreen" style="display:block; position:absolute; width:100%; height:100%; background:#111; color:#fff; z-index: 10;">
       <h2>Choose a song</h2>
@@ -38,7 +45,7 @@
     </div>
 
     <div id="coverArt">
-      <img src="videoframe_117532.png" alt="Album Cover" />
+      <img src="images/videoframe_117532.png" alt="Album Cover" />
       <div class="songInfo">
         <h3>Song</h3>
         <p>Artist</p>
@@ -47,10 +54,11 @@
     </div>
 
     <div id="noteButtons">
-      <div class="noteBtn" data-key="Z">Z</div>
-      <div class="noteBtn" data-key="X">X</div>
+      <div class="noteBtn" data-key="C">C</div>
+      <div class="noteBtn" data-key="V">V</div>
+      <div class="noteBtn" data-key="B">B</div>
       <div class="noteBtn" data-key="N">N</div>
-      <div class="noteBtn" data-key="M">M</div>
+      <div class="noteBtn" data-key="M">M</div> <!-- เพิ่ม -->
     </div>
       <audio id="audio" src="Chocolate.mp3"></audio> <Chocolate.mp3>
     </div>

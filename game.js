@@ -8,15 +8,20 @@ const scoreDisplay = document.getElementById("score");
 const gameContainer = document.getElementById("gameContainer");
 
 const keyMap = {
-  KeyZ: 0,
-  KeyX: 1,
-  KeyN: 2,
-  KeyM: 3
+  KeyC: 0,
+  KeyV: 1,
+  KeyB: 2,
+  KeyN: 3,
+  KeyM: 4   // เพิ่มเลนที่ 5
 };
 
-const laneCount = 4;
+const laneCount = 5;
 const laneWidth = canvas.width / laneCount;
 const hitLine = canvas.height - 80;
+const HIT_WINDOW_PERFECT = 35; // ✅ ขยายระยะเพื่อเล่นง่ายขึ้น
+const HIT_WINDOW_GREAT = 70;
+const HIT_WINDOW_GOOD = 100;
+const END_HOLD_TOLERANCE = 150; // ปล่อยได้ก่อนถึงเส้นปลาย XXpx โดยไม่ถือว่า MISS
 
 let combo = 0;
 let score = 0;
@@ -24,7 +29,7 @@ let notes = [];
 let isGameRunning = false;
 let spawnNoteInterval = null;
 let hitLineEffect = {
-  state: "normal", // perfect, miss, normal
+  state: "normal",
   timer: 0
 };
 
@@ -84,7 +89,7 @@ class Note {
     this.width = laneWidth / 2;
     this.height = 25;
     this.length = length;
-    this.speed = 2.5;
+    this.speed = 4.0;
     this.type = type;
     this.active = true;
     this.wasHit = false;
@@ -108,12 +113,14 @@ class Note {
 
     this.isHolding = false;
 
-    if (!success && this.holdProgress < this.length) {
+    const actualHoldLength = this.holdProgress;
+
+    if (!success && actualHoldLength < this.length - END_HOLD_TOLERANCE) {
       combo = 0;
       showFeedback("MISS");
       updateComboScore();
-    } else if (success) {
-      // ให้คะแนนครั้งสุดท้ายเมื่อสำเร็จ
+    } else if (success || actualHoldLength >= this.length - END_HOLD_TOLERANCE) {
+      // ✅ สำเร็จแม้จะปล่อยก่อนถึงปลายเล็กน้อย
       score += 100;
       updateComboScore();
     }
@@ -176,7 +183,7 @@ class Note {
 
         // เส้นพื้นหลัง (drop) สีเข้มลง
         ctx.shadowBlur = 0; // ปิด shadow ก่อนวาดอันอื่น
-        ctx.fillStyle = "rgba(0, 100, 200, 0.2)";
+        ctx.fillStyle = "rgba(52, 111, 170, 0.63)";
         ctx.fillRect(tailX, tailY, 10, this.length);
 
         // วาดหัวโน้ตสีสว่าง
@@ -207,11 +214,10 @@ class Note {
     return (
       this.active &&
       !this.wasHit &&
-      this.y + this.height > hitLine - 50 &&
-      this.y < hitLine + 50
+      this.y + this.height > hitLine - HIT_WINDOW &&
+      this.y < hitLine + HIT_WINDOW
     );
   }
-
   isMissed() {
     return (
       this.active &&
@@ -227,29 +233,36 @@ class Note {
 function spawnNote() {
   const noteCount = Math.random() < 0.3 ? 2 : 1; // 30% ออก 2 โน้ต
   const lanesUsed = [];
+  const minSpacing = 100; // ปรับตามความเร็วโน้ต ยิ่งเร็วยิ่งใช้ค่ามาก
 
   while (lanesUsed.length < noteCount) {
     const lane = Math.floor(Math.random() * laneCount);
-    if (!lanesUsed.includes(lane)) {
-      lanesUsed.push(lane);
-    }
+    if (lanesUsed.includes(lane)) continue;
+
+    // ✅ ตรวจสอบว่าเลนนี้ไม่มีโน้ตอื่นใกล้ๆ
+    const tooClose = notes.some(note =>
+      note.lane === lane &&
+      Math.abs(note.y + note.height) < minSpacing
+    );
+
+    if (tooClose) continue;
+    lanesUsed.push(lane);
   }
 
   lanesUsed.forEach(lane => {
     const isLong = Math.random() < 0.3;
 
-    // สุ่มระดับความยาวของ Long Note
     let noteLength = 0;
     if (isLong) {
       const lengthType = Math.random();
-      if (lengthType < 0.4) {
-        noteLength = 60 + Math.random() * 40; // สั้น: 60–100
-      } else if (lengthType < 0.8) {
-        noteLength = 100 + Math.random() * 80; // กลาง: 100–180
+      if (lengthType < 0.5) {
+        noteLength = 80 + Math.random() * 60;  // short long note (80-140)
+      } else if (lengthType < 0.6) {
+        noteLength = 150 + Math.random() * 100; // medium (150-250)
       } else {
-        noteLength = 180 + Math.random() * 80; // ยาว: 180–260
+        noteLength = 260 + Math.random() * 200; // long long note (260-460)
       }
-    }
+    } 
 
     notes.push(new Note(lane, -50, isLong ? "long" : "normal", noteLength));
   });
@@ -273,22 +286,18 @@ function updateNotes() {
 function drawNotes() {
   notes.forEach(note => note.draw());
 }
+
 function checkHit(lane) {
   const hittableNotes = notes.filter(note =>
     note.lane === lane &&
     note.active &&
-    !note.wasHit &&
-    Math.abs((note.y + note.height / 2) - hitLine) <= 50
+    !note.wasHit
   );
 
   if (hittableNotes.length === 0) {
     combo = 0;
     showFeedback("MISS");
     updateComboScore();
-
-    // ✅✅ เพิ่ม effect เมื่อ MISS
-    hitLineEffect.state = "miss";
-    hitLineEffect.timer = 30;
     return;
   }
 
@@ -304,26 +313,34 @@ function checkHit(lane) {
   }
 
   if (closestNote.type === "normal") {
-    if (minDist <= 20) {
+    if (minDist <= HIT_WINDOW_PERFECT) {
       closestNote.wasHit = true;
       closestNote.active = false;
       combo++;
       score += 300;
       showFeedback("PERFECT");
-      hitLineEffect.state = "perfect";    // ✅✅ ย้ายเข้ามาใน perfect
+      hitLineEffect.state = "perfect";
       hitLineEffect.timer = 30;
-    } else if (minDist <= 50) {
+    } else if (minDist <= HIT_WINDOW_GREAT) {
+      closestNote.wasHit = true;
+      closestNote.active = false;
+      combo++;
+      score += 200;
+      showFeedback("GREAT");
+      hitLineEffect.state = "normal";
+      hitLineEffect.timer = 0;
+    } else if (minDist <= HIT_WINDOW_GOOD) {
       closestNote.wasHit = true;
       closestNote.active = false;
       combo++;
       score += 100;
-      showFeedback("GREAT");
-      hitLineEffect.state = "normal";     // ✅✅ ไม่มี glow
+      showFeedback("GOOD");
+      hitLineEffect.state = "normal";
       hitLineEffect.timer = 0;
     } else {
       combo = 0;
       showFeedback("MISS");
-      hitLineEffect.state = "miss";       // ✅✅ กรณี MISS
+      hitLineEffect.state = "miss";
       hitLineEffect.timer = 30;
     }
     updateComboScore();
@@ -332,18 +349,26 @@ function checkHit(lane) {
   }
 
   if (closestNote.type === "long") {
-    if (minDist <= 30) {
+    if (minDist <= HIT_WINDOW_PERFECT) {
       closestNote.startHoldScore();
       combo++;
       showFeedback("PERFECT");
       updateComboScore();
-      hitLineEffect.state = "perfect";   // ✅✅ long note perfect
+      hitLineEffect.state = "perfect";
       hitLineEffect.timer = 30;
       showFlareEffectOnButton(buttons[lane]);
-    } else if (minDist <= 70) {
+   } else if (minDist <= HIT_WINDOW_GREAT) {
       closestNote.startHoldScore();
       combo++;
       showFeedback("GREAT");
+      updateComboScore();
+      hitLineEffect.state = "normal";
+     hitLineEffect.timer = 0;
+      showFlareEffectOnButton(buttons[lane]);
+   } else if (minDist <= HIT_WINDOW_GOOD) {
+      closestNote.startHoldScore();
+      combo++;
+    showFeedback("GOOD");
       updateComboScore();
       hitLineEffect.state = "normal";
       hitLineEffect.timer = 0;
@@ -351,12 +376,16 @@ function checkHit(lane) {
     } else {
       combo = 0;
       showFeedback("MISS");
-      updateComboScore();
+     updateComboScore();
       hitLineEffect.state = "miss";
       hitLineEffect.timer = 30;
     }
-    return;
+   return;
   }
+
+  combo = 0;
+  showFeedback("MISS");
+  updateComboScore();
 }
 
   // ถ้าไม่ผ่านเกณฑ์กดได้ ถือว่า MISS
@@ -373,6 +402,24 @@ function showFeedback(text) {
   feedbackText.textContent = text;
   feedbackText.style.opacity = "1";
   comboNum.style.opacity = "1";
+
+  // เปลี่ยนสีตาม timing rank
+  switch (text) {
+    case "PERFECT":
+      feedbackText.style.color = "#FFD700"; // เหลืองทอง
+      break;
+    case "GREAT":
+      feedbackText.style.color = "#00FF00"; // เขียว
+      break;
+    case "GOOD":
+      feedbackText.style.color = "#00BFFF"; // ฟ้า
+      break;
+    case "MISS":
+      feedbackText.style.color = "#FF3333"; // แดง
+      break;
+    default:
+      feedbackText.style.color = "#FFFFFF"; // สีขาวเป็นค่าเริ่มต้น
+  }
 
   setTimeout(() => {
     feedbackText.style.opacity = "0";
@@ -420,7 +467,7 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-const keysPressed = [false, false, false, false];
+const keysPressed = [false, false, false, false, false];
 
 document.addEventListener("keydown", e => {
   if (keyMap[e.code] !== undefined && !keysPressed[keyMap[e.code]]) {
@@ -491,16 +538,16 @@ function startGame() {
 const songs = [
   {
     name: "Chocolate",
-    file: "Chocolate.mp3",
+    file: "audio/Chocolate.mp3",
     spawnInterval: 667,
-    cover: "videoframe_117532.png",
+    cover: "images/videoframe_117532.png",
     artist: "Plasui Plasui"
   },
   {
     name: "น้ำค้าง",
-    file: "Desktop Error  น้ำค้าง.mp3",
+    file: "audio/Desktop Error  น้ำค้าง.mp3",
     spawnInterval: 682,
-    cover: "videoframe_3108.png",
+    cover: "images/videoframe_3108.png",
     artist: "Desktop Error"
   },
   {
@@ -563,6 +610,25 @@ function resetGame() {
   audio.currentTime = 0;
 }
 
+function endGame() {
+  isGameRunning = false;
+  clearInterval(spawnNoteInterval);
+  notes = [];
+
+  // แสดงหน้าสรุป
+  document.getElementById("resultScreen").style.display = "flex";
+
+  // อัปเดตคะแนน/คอมโบ
+  document.getElementById("finalScore").textContent = "Score: " + score.toString().padStart(6, "0");
+  document.getElementById("finalCombo").textContent = "Max Combo: " + combo;
+}
+
+function goToSongSelect() {
+  document.getElementById("resultScreen").style.display = "none";
+  songSelectScreen.style.display = "block";
+  resetGame();
+}
+
 initSongSelect();
 
 buttons.forEach((button, lane) => {
@@ -589,4 +655,8 @@ buttons.forEach((button, lane) => {
       }
     });
   });
+});
+
+audio.addEventListener("ended", () => {
+  endGame();
 });
