@@ -1915,21 +1915,20 @@ function getCanvasX(e) {
 }
 
 canvas.addEventListener("pointerdown", e => {
-  if (uiMode !== "game") return; 
-
+  if (uiMode !== "game") return;
   e.preventDefault();
 
   const x = getCanvasX(e);
+  const lane = getLaneIndexByX(x);
+  if (lane === null) return;
 
-  for (let i = 0; i < laneData.length; i++) {
-    const lane = laneData[i];
-    if (x >= lane.x && x <= lane.x + lane.width) {
-      activePointers.set(e.pointerId, i);
-      pressLane(i);
-      break;
-    }
-  }
-}, { passive: false });
+  // map pointerId → lane
+  activePointers.set(e.pointerId, lane);
+
+  // แค่กด lane นั้น ไม่ไป touch lane อื่น
+  if (!keysPressed[lane]) pressLane(lane);
+});
+
 
 canvas.addEventListener("pointerup", e => {
   e.preventDefault();
@@ -1945,12 +1944,17 @@ canvas.addEventListener("pointercancel", () => {
 });
 
 function releasePointer(e) {
-  if (!activePointers.has(e.pointerId)) return;
+  const lane = activePointers.get(e.pointerId);
+  if (lane === undefined) return;
 
-  const laneIndex = activePointers.get(e.pointerId);
-  releaseLane(laneIndex);
   activePointers.delete(e.pointerId);
+
+  // release lane เฉพาะ pointer นี้
+  // ถ้ามี pointer อื่นถืออยู่ lane นี้อยู่ ก็ไม่ release
+  const stillPressed = [...activePointers.values()].includes(lane);
+  if (!stillPressed) releaseLane(lane);
 }
+
 
 canvas.addEventListener("pointerup", releasePointer);
 canvas.addEventListener("pointercancel", releasePointer);
@@ -1964,19 +1968,21 @@ canvas.addEventListener("pointermove", e => {
 
   const x = getCanvasX(e);
   const newLane = getLaneIndexByX(x);
-
   if (newLane === null) return;
 
   const oldLane = activePointers.get(e.pointerId);
-  if (newLane === oldLane) return;
+  if (oldLane === newLane) return;
 
+  // อัพเดต pointer → lane
   activePointers.set(e.pointerId, newLane);
-  
-  // 🔥 เปลี่ยนเลนระหว่างลาก
-  releaseLane(oldLane);
-  pressLane(newLane);
 
-}, { passive: false });
+  // release เฉพาะ oldLane ถ้าไม่มี pointer อื่นถือ
+  const stillPressed = [...activePointers.values()].includes(oldLane);
+  if (!stillPressed) releaseLane(oldLane);
+
+  // press lane ใหม่
+  if (!keysPressed[newLane]) pressLane(newLane);
+});
 
 canvas.addEventListener("wheel", e => {
   if (uiMode === "game") {
