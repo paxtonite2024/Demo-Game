@@ -11,50 +11,32 @@ body {
   width: 1000px;
   height: 600px;
   margin: auto;
-  background-color: #111;
+  overflow: hidden;
 }
 
 #gameCanvas {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 3;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.2), #000);
-  clip-path: polygon(20% 0, 80% 0, 100% 100%, 0% 100%);
+  z-index: 1;
+}
+
+#gameCanvas, .noteBtn {
+  touch-action: none;
+  user-select: none;
 }
 
 #scorePanel {
   position: absolute;
   top: 20px;
   left: 20px;
-  font-size: 14px;
+  font-size: 20px;
   z-index: 3;
 }
 
 #score {
-  font-size: 28px;
+  font-size: 64px;
   margin-bottom: 10px;
-}
-
-#coverArt {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 1000px;      /* เท่ากับ gameContainer */
-  height: 600px;      /* เท่ากับ gameContainer */
-  z-index: 0;         /* ต่ำกว่า gameContainer */
-  pointer-events: none; /* คลิกทะลุได้ */
-  overflow: hidden;
-  border-radius: 0;   /* ลบมุมโค้งถ้ามี */
-}
-
-#coverArt img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;  /* ให้รูปเต็มกรอบ */
-  filter: brightness(0.6); /* ลดความสว่างลงหน่อย (ปรับได้) */
-  position: relative;
-  z-index: 1;
 }
 
 .songInfo {
@@ -72,13 +54,13 @@ body {
 
 .songInfo h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .songInfo p {
   margin: 0;
   font-size: 14px;
-  color: #0f0;
+  color: rgb(255, 255, 255);
 }
 
 #pauseBtn {
@@ -86,11 +68,11 @@ body {
   top: 60px;           /* ขยับจากบนลงมา 10px */
   right: 10px;         /* ชิดขวา 10px */
   background: none;
-  border: 2px solid #ffa500;
-  color: #ffa500;
-  font-size: 18px;
-  padding: 4px 10px;
-  border-radius: 20px;
+  border: 2px solid #ff5500;
+  color: #ff5500;
+  font-size: 16px;
+  padding: 2px 4px;
+  border-radius: 40px;
   margin-top: 5px;
   cursor: pointer;
   z-index: 4;
@@ -111,84 +93,41 @@ body {
   text-align: center;
 }
 
+
 #comboNum {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: bold;
   color: white;
 }
 
 #feedbackText {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: bold;
   color: yellow;
   margin-top: 5px;
 }
 
 #noteButtons {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  display: flex;
-  justify-content: space-around;
-  z-index: 4;
+  display: none;
 }
 
-.noteBtn {
-  width: 100px;
-  height: 60px;
-  background: radial-gradient(#fff, #888);
-  border: 4px solid #ccc;
-  border-radius: 16px;
-  text-align: center;
-  line-height: 60px;
-  font-size: 24px;
-  font-weight: bold;
-  box-shadow: 0 0 15px #fff;
-  user-select: none;
-  transition: transform 0.1s;
-  position: relative;
-  overflow: visible;
-}
-
-.noteBtn.active {
-  background: radial-gradient(#fff, #0ff);
-  transform: scale(1.1);
-  box-shadow: 0 0 30px #0ff;
-}
-
-/* เส้นแสงกระพริบขอบเลน */
-.laneGlow {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  background: linear-gradient(to bottom, #0ff, transparent, #0ff);
-  animation: glowPulse 1.5s infinite ease-in-out;
-  z-index: 2;
-  border-radius: 3px;
-}
-
-@keyframes glowPulse {
-  0%, 100% { opacity: 0.2; }
-  50% { opacity: 0.8; }
-}
 
 /* Flare effect สำหรับปุ่มกด */
 .flareEffect {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 120px;
-  height: 120px;
+  width: 200px;
+  height: 200px;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(255, 255, 208, 0.8) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(255, 255, 208, 0.8) 0%, transparent 40%);
   border-radius: 50%;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  animation: flarePulse 0.3s ease-out;
   z-index: 10;
   filter: drop-shadow(0 0 8px #ff0);
 }
+
 #startScreen {
   position: absolute;
   top: 0;
