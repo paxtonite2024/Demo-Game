@@ -80,6 +80,7 @@ let activeHoldCount = 0;
 let hitEffects = [];
 let holdEffects = {};
 let activeSlide = null
+let uiMode = "select"; 
 
 // ===============================
 // Camera (Bird Eye View)
@@ -1705,6 +1706,7 @@ startScreen.addEventListener("touchstart", () => {
 function startGame() {
   startScreen.style.display = "none";
   canvas.style.touchAction = "none";
+  uiMode = "game";
   gameStarted = true;
 
   // reset ทุกอย่าง
@@ -1776,6 +1778,7 @@ const songListDiv = document.getElementById("songList");
 
 function initSongSelect() {
   canvas.style.touchAction = "auto";
+  uiMode = "select";
   songListDiv.innerHTML = "";
   songs.forEach((song, index) => {
     const btn = document.createElement("button");
@@ -1811,6 +1814,8 @@ function selectSong(index) {
 }
 
 function resetGame() {
+  canvas.style.touchAction = "auto";
+  uiMode = "select";
   combo = 0;
   score = 0;
   notes = [];
@@ -1866,6 +1871,7 @@ function resizeGame() {
     0,
     0
   );
+  rebuildLanes();
 }
 
 function getLaneFromX(x) {
@@ -1888,8 +1894,27 @@ function getLaneIndexByX(x) {
   return null;
 }
 
+function rebuildLanes() {
+  laneData.length = 0;
+
+  const laneWidth = canvas.width * 0.15;
+  const laneGap = canvas.width * 0.0;
+  const totalLaneWidth =
+    laneCount * laneWidth + (laneCount - 1) * laneGap;
+  const laneStartX = (canvas.width - totalLaneWidth) / 2;
+
+  for (let i = 0; i < laneCount; i++) {
+    laneData.push({
+      x: laneStartX + i * (laneWidth + laneGap),
+      width: laneWidth,
+      pressAlpha: 0,
+      hitGlowAlpha: 0
+    });
+  }
+}
+
 canvas.addEventListener("pointerdown", e => {
-  if (!gameStarted) return;
+  if (uiMode !== "game") return; 
 
   e.preventDefault();
 
@@ -1951,6 +1976,12 @@ canvas.addEventListener("pointermove", e => {
   pressLane(newLane);
 
   activePointers.set(e.pointerId, newLane);
+}, { passive: false });
+
+canvas.addEventListener("wheel", e => {
+  if (uiMode === "game") {
+    e.preventDefault();
+  }
 }, { passive: false });
 
 audio.addEventListener("ended", () => {
