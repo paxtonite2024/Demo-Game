@@ -1877,7 +1877,7 @@ function getLaneFromX(x) {
       return i;
     }
   }
-  return -1;
+  return null; // ไม่อยู่ในเลน
 }
 
 function getLaneIndexByX(x) {
@@ -1909,13 +1909,17 @@ function rebuildLanes() {
   }
 }
 
+function getCanvasX(e) {
+  const rect = canvas.getBoundingClientRect();
+  return (e.clientX - rect.left) * (canvas.width / rect.width);
+}
+
 canvas.addEventListener("pointerdown", e => {
   if (uiMode !== "game") return; 
 
   e.preventDefault();
 
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
+  const x = getCanvasX(e);
 
   for (let i = 0; i < laneData.length; i++) {
     const lane = laneData[i];
@@ -1958,20 +1962,20 @@ canvas.addEventListener("pointermove", e => {
 
   e.preventDefault();
 
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-
+  const x = getCanvasX(e);
   const newLane = getLaneIndexByX(x);
+
   if (newLane === null) return;
 
   const oldLane = activePointers.get(e.pointerId);
   if (newLane === oldLane) return;
 
+  activePointers.set(e.pointerId, newLane);
+  
   // 🔥 เปลี่ยนเลนระหว่างลาก
   releaseLane(oldLane);
   pressLane(newLane);
 
-  activePointers.set(e.pointerId, newLane);
 }, { passive: false });
 
 canvas.addEventListener("wheel", e => {
