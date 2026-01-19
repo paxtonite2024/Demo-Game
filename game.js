@@ -44,7 +44,7 @@ const HIT_WINDOW_GOOD_MS = 500;
 const END_HOLD_TOLERANCE = 500; // ปล่อยได้ก่อนถึงเส้นปลาย XXpx โดยไม่ถือว่า MISS
 const SPAWN_LEAD_TIME = 2000; // ms
 const HIT_EARLY_BUFFER = 100; // ms
-const NOTE_SPEED = 8.0;
+const NOTE_SPEED = 12.0;
 const SLIDE_TIMING = {
   PERFECT: 200,
   GREAT: 300,
@@ -1854,25 +1854,21 @@ function goToSongSelect() {
 initSongSelect();
 
 function resizeGame() {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  const baseW = 1000
+  const baseH = 600
 
-  canvas.width = vw * window.devicePixelRatio;
-  canvas.height = vh * window.devicePixelRatio;
+  const vw = window.innerWidth
+  const vh = window.innerHeight
 
-  canvas.style.width = vw + "px";
-  canvas.style.height = vh + "px";
+  const scale = Math.min(vw / baseW, vh / baseH)
 
-  ctx.setTransform(
-    window.devicePixelRatio,
-    0,
-    0,
-    window.devicePixelRatio,
-    0,
-    0
-  );
-  rebuildLanes();
+  const wrapper = document.getElementById("game-wrapper")
+  wrapper.style.transform =
+    `translate(-50%, -50%) scale(${scale})`
 }
+
+window.addEventListener("resize", resizeGame)
+resizeGame()
 
 function getLaneFromX(x) {
   for (let i = 0; i < laneData.length; i++) {
