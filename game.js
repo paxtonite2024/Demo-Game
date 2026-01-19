@@ -36,7 +36,7 @@ for (let i = 0; i < laneCount; i++) {
   });
 }
 
-const hitLine = canvas.height - 80;
+
 const PIXELS_PER_MS = 0.35;
 const HIT_WINDOW_PERFECT_MS = 200; // ✅ ขยายระยะเพื่อเล่นง่ายขึ้น
 const HIT_WINDOW_GREAT_MS = 300;
@@ -51,6 +51,8 @@ const SLIDE_TIMING = {
   GOOD: 400,
 }
 const SLIDE_END_BUFFER_MS = 250
+const SAFE_BOTTOM = window.safeAreaInsetBottom || 20;
+const hitLine = canvas.height - 80 - SAFE_BOTTOM;
 
 
 let bgCoverImg = null;
@@ -1843,19 +1845,48 @@ function goToSongSelect() {
 
 initSongSelect();
 
+function resizeGame() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  canvas.width = vw * window.devicePixelRatio;
+  canvas.height = vh * window.devicePixelRatio;
+
+  canvas.style.width = vw + "px";
+  canvas.style.height = vh + "px";
+
+  ctx.setTransform(
+    window.devicePixelRatio,
+    0,
+    0,
+    window.devicePixelRatio,
+    0,
+    0
+  );
+}
+
 buttons.forEach((button, lane) => {
-  button.style.touchAction = "none"; // 🔥 สำคัญมาก
+  button.style.touchAction = "none";
 
   button.addEventListener("pointerdown", e => {
     e.preventDefault();
-    button.setPointerCapture(e.pointerId); // 🔥 กันหลุด
+    e.stopPropagation();
+
+    if (button.setPointerCapture) {
+      button.setPointerCapture(e.pointerId);
+    }
+
     pressLane(lane);
-  });
+  }, { passive: false });
 
   button.addEventListener("pointerup", e => {
+    e.preventDefault();
     releaseLane(lane);
-    button.releasePointerCapture(e.pointerId);
-  });
+
+    if (button.releasePointerCapture) {
+      button.releasePointerCapture(e.pointerId);
+    }
+  }, { passive: false });
 
   button.addEventListener("pointercancel", () => {
     releaseLane(lane);

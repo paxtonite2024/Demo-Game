@@ -1,3 +1,23 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+#gameContainer,
+#gameCanvas,
+.noteBtn {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -12,6 +32,10 @@ body {
   height: 600px;
   margin: auto;
   overflow: hidden;
+}
+
+#gameContainer {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 #gameCanvas {
