@@ -1775,6 +1775,7 @@ const songSelectScreen = document.getElementById("songSelectScreen");
 const songListDiv = document.getElementById("songList");
 
 function initSongSelect() {
+  canvas.style.touchAction = "auto";
   songListDiv.innerHTML = "";
   songs.forEach((song, index) => {
     const btn = document.createElement("button");
@@ -1877,7 +1878,15 @@ function getLaneFromX(x) {
   return -1;
 }
 
-canvas.style.touchAction = "auto";
+function getLaneIndexByX(x) {
+  for (let i = 0; i < laneData.length; i++) {
+    const lane = laneData[i];
+    if (x >= lane.x && x <= lane.x + lane.width) {
+      return i;
+    }
+  }
+  return null;
+}
 
 canvas.addEventListener("pointerdown", e => {
   if (!gameStarted) return;
@@ -1921,6 +1930,28 @@ function releasePointer(e) {
 canvas.addEventListener("pointerup", releasePointer);
 canvas.addEventListener("pointercancel", releasePointer);
 canvas.addEventListener("pointerleave", releasePointer);
+
+canvas.addEventListener("pointermove", e => {
+  if (!gameStarted) return;
+  if (!activePointers.has(e.pointerId)) return;
+
+  e.preventDefault();
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+
+  const newLane = getLaneIndexByX(x);
+  if (newLane === null) return;
+
+  const oldLane = activePointers.get(e.pointerId);
+  if (newLane === oldLane) return;
+
+  // 🔥 เปลี่ยนเลนระหว่างลาก
+  releaseLane(oldLane);
+  pressLane(newLane);
+
+  activePointers.set(e.pointerId, newLane);
+}, { passive: false });
 
 audio.addEventListener("ended", () => {
   endGame();
