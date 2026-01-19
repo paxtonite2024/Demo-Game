@@ -53,6 +53,7 @@ const SLIDE_TIMING = {
 const SLIDE_END_BUFFER_MS = 250
 const SAFE_BOTTOM = window.safeAreaInsetBottom || 20;
 const hitLine = canvas.height - 80
+const activePointers = new Map();
 
 
 let bgCoverImg = null;
@@ -1703,6 +1704,7 @@ startScreen.addEventListener("touchstart", () => {
 
 function startGame() {
   startScreen.style.display = "none";
+  canvas.style.touchAction = "none";
   gameStarted = true;
 
   // reset ทุกอย่าง
@@ -1875,17 +1877,23 @@ function getLaneFromX(x) {
   return -1;
 }
 
-canvas.style.touchAction = "none";
+canvas.style.touchAction = "auto";
 
 canvas.addEventListener("pointerdown", e => {
+  if (!gameStarted) return;
+
   e.preventDefault();
 
   const rect = canvas.getBoundingClientRect();
-  const x = (e.clientX - rect.left);
+  const x = e.clientX - rect.left;
 
-  const lane = getLaneFromX(x);
-  if (lane !== -1) {
-    pressLane(lane);
+  for (let i = 0; i < laneData.length; i++) {
+    const lane = laneData[i];
+    if (x >= lane.x && x <= lane.x + lane.width) {
+      activePointers.set(e.pointerId, i);
+      pressLane(i);
+      break;
+    }
   }
 }, { passive: false });
 
@@ -1901,6 +1909,18 @@ canvas.addEventListener("pointercancel", () => {
     if (pressed) releaseLane(lane);
   });
 });
+
+function releasePointer(e) {
+  if (!activePointers.has(e.pointerId)) return;
+
+  const laneIndex = activePointers.get(e.pointerId);
+  releaseLane(laneIndex);
+  activePointers.delete(e.pointerId);
+}
+
+canvas.addEventListener("pointerup", releasePointer);
+canvas.addEventListener("pointercancel", releasePointer);
+canvas.addEventListener("pointerleave", releasePointer);
 
 audio.addEventListener("ended", () => {
   endGame();
