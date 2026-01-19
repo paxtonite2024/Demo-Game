@@ -52,7 +52,7 @@ const SLIDE_TIMING = {
 }
 const SLIDE_END_BUFFER_MS = 250
 const SAFE_BOTTOM = window.safeAreaInsetBottom || 20;
-const hitLine = canvas.height - 80 - SAFE_BOTTOM;
+const hitLine = canvas.height - 80
 
 
 let bgCoverImg = null;
@@ -1865,31 +1865,40 @@ function resizeGame() {
   );
 }
 
-buttons.forEach((button, lane) => {
-  button.style.touchAction = "none";
-
-  button.addEventListener("pointerdown", e => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (button.setPointerCapture) {
-      button.setPointerCapture(e.pointerId);
+function getLaneFromX(x) {
+  for (let i = 0; i < laneData.length; i++) {
+    const lane = laneData[i];
+    if (x >= lane.x && x <= lane.x + lane.width) {
+      return i;
     }
+  }
+  return -1;
+}
 
+canvas.style.touchAction = "none";
+
+canvas.addEventListener("pointerdown", e => {
+  e.preventDefault();
+
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left);
+
+  const lane = getLaneFromX(x);
+  if (lane !== -1) {
     pressLane(lane);
-  }, { passive: false });
+  }
+}, { passive: false });
 
-  button.addEventListener("pointerup", e => {
-    e.preventDefault();
-    releaseLane(lane);
+canvas.addEventListener("pointerup", e => {
+  e.preventDefault();
+  keysPressed.forEach((pressed, lane) => {
+    if (pressed) releaseLane(lane);
+  });
+}, { passive: false });
 
-    if (button.releasePointerCapture) {
-      button.releasePointerCapture(e.pointerId);
-    }
-  }, { passive: false });
-
-  button.addEventListener("pointercancel", () => {
-    releaseLane(lane);
+canvas.addEventListener("pointercancel", () => {
+  keysPressed.forEach((pressed, lane) => {
+    if (pressed) releaseLane(lane);
   });
 });
 
