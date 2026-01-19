@@ -1705,8 +1705,8 @@ startScreen.addEventListener("touchstart", () => {
 
 function startGame() {
   startScreen.style.display = "none";
-  canvas.style.touchAction = "none";
   uiMode = "game";
+  canvas.style.touchAction = "none";
   gameStarted = true;
 
   // reset ทุกอย่าง
@@ -1777,8 +1777,8 @@ const songSelectScreen = document.getElementById("songSelectScreen");
 const songListDiv = document.getElementById("songList");
 
 function initSongSelect() {
-  canvas.style.touchAction = "auto";
   uiMode = "select";
+  canvas.style.touchAction = "auto";
   songListDiv.innerHTML = "";
   songs.forEach((song, index) => {
     const btn = document.createElement("button");
