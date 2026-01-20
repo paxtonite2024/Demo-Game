@@ -9,6 +9,11 @@ html, body {
   overscroll-behavior: none;
 }
 
+canvas {
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
 #gameContainer,
 #gameCanvas,
 .noteBtn {
