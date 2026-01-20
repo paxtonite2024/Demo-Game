@@ -1929,20 +1929,6 @@ canvas.addEventListener("pointerdown", e => {
   if (!keysPressed[lane]) pressLane(lane);
 });
 
-
-canvas.addEventListener("pointerup", e => {
-  e.preventDefault();
-  keysPressed.forEach((pressed, lane) => {
-    if (pressed) releaseLane(lane);
-  });
-}, { passive: false });
-
-canvas.addEventListener("pointercancel", () => {
-  keysPressed.forEach((pressed, lane) => {
-    if (pressed) releaseLane(lane);
-  });
-});
-
 function releasePointer(e) {
   const lane = activePointers.get(e.pointerId);
   if (lane === undefined) return;
