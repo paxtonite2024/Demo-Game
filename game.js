@@ -46,13 +46,13 @@ const SPAWN_LEAD_TIME = 2000; // ms
 const HIT_EARLY_BUFFER = 100; // ms
 const NOTE_SPEED = 12.0;
 const SLIDE_TIMING = {
-  PERFECT: 200,
-  GREAT: 300,
-  GOOD: 400,
+  PERFECT: 400,
+  GREAT: 500,
+  GOOD: 600,
 }
-const SLIDE_END_BUFFER_MS = 250
+const SLIDE_END_BUFFER_MS = 250;
 const SAFE_BOTTOM = window.safeAreaInsetBottom || 20;
-const hitLine = canvas.height - 80
+const hitLine = canvas.height - 80;
 const activePointers = new Map();
 
 
@@ -724,194 +724,191 @@ function updateNotes() {
 function updateSlideGameplay(slide) {
   if (!slide.active || slide.dead || slide.failed) return
 
-  
   const i = slide.currentIndex
   const point = slide.cachedPoints[i]
   if (!point) return
 
   const lane = point.lane
   const keyHolding =
-  keysPressed[lane] ||
-  keysPressed[lane - 1] ||
-  keysPressed[lane + 1]
+    keysPressed[lane] ||
+    keysPressed[lane - 1] ||
+    keysPressed[lane + 1]
 
-  const canStart =
-  !slide.started &&
-  (
-    !activeSlide ||
-    activeSlide === slide ||
-    activeSlide.finished   // ✅ อนุญาต slide ถัดไป
-  )
   const pointTime = slide.time + point.t
   const dt = gameNow - pointTime
   const adt = Math.abs(dt)
-  const SLIDE_JUDGE_SCALE = 1.6
 
-  if (slide.releaseGrace === undefined) {
-    slide.releaseGrace = 0
-  }
-  // ===== START =====
+  // ===== INIT STATE =====
+  if (slide.releaseGrace === undefined) slide.releaseGrace = 0
+  if (slide.holdTickTimer === undefined) slide.holdTickTimer = 0
+  if (slide.lastHoldTime === undefined) slide.lastHoldTime = gameNow
+  if (!slide.pointHit) slide.pointHit = []
+
+  /* ======================================================
+     START JUDGE (HEAD) — เหมือน Long Note
+  ====================================================== */
   if (!slide.started) {
-    if (canStart && keyHolding && adt <= SLIDE_TIMING.GOOD) {
-      slide.started = true
-      activeSlide = slide   
-      slide.releaseGrace = 0
-      slide.finished = false
+    const START_EARLY = 200
 
-      slide.headRank =
-        adt <= SLIDE_TIMING.PERFECT * SLIDE_JUDGE_SCALE ? "PERFECT" :
-        adt <= SLIDE_TIMING.GREAT * SLIDE_JUDGE_SCALE  ? "GREAT"   :
-                                    "GOOD"
-
-      showFeedback(slide.headRank)
-
-      slide.currentIndex++
-      slide.currentIndex = Math.min(
-        slide.currentIndex,
-        slide.cachedPoints.length - 1
-      )
-      
-      slide.lastHoldTime = gameNow
-      slide.holdTickTimer = 0
-      return 
-    }
-    else if (dt > SLIDE_TIMING.GOOD) {
-      slide.failed = true
-      if (activeSlide === slide) {
-        activeSlide = null
-      }
-      combo = 0
-      updateComboScore()
-      showFeedback("MISS")
-    }
-    return
-  }
-
-  // ===== PLAYING =====
-  if (!keyHolding) {
-    slide.releaseGrace += (gameNow - slide.lastHoldTime)
-    slide.lastHoldTime = gameNow
-
-    const SLIDE_RELEASE_GRACE = 320
-
-    if (slide.started && slide.releaseGrace > SLIDE_RELEASE_GRACE) {
-      slide.failed = true
-      if (activeSlide === slide) {
-        activeSlide = null
-      }
-      combo = 0
-      updateComboScore()
-      showFeedback("MISS")
-    }
-    return
-  } else {
-    slide.lastHoldTime = gameNow
-    slide.releaseGrace = 0
-  }
-
-  if (
-    dt >= -SLIDE_TIMING.GOOD * 1.5 &&
-    dt <=  SLIDE_TIMING.GOOD * 1.5 &&
-    !slide.pointHit[i]
-  ) {
-
-    slide.pointHit[i] = true
-
-    const rank =
-      adt <= SLIDE_TIMING.PERFECT * SLIDE_JUDGE_SCALE ? "PERFECT" :
-      adt <= SLIDE_TIMING.GREAT * SLIDE_JUDGE_SCALE  ? "GREAT"   :
-                                  "GOOD"
-
-    showFeedback(rank)
-    combo++
-    updateComboScore()
-
-    slide.currentIndex++
-    slide.releaseGrace = 0
-
-
-    // ==== NODE GRACE PASS ====
-    if (
-      slide.started &&
-      keyHolding &&
-      dt > SLIDE_TIMING.GOOD &&
-      !slide.pointHit[i]
-    ) {
-      slide.pointHit[i] = true
-      slide.currentIndex++
-      slide.releaseGrace = 0
+    // กดค้างก่อนถึง (ไม่ miss)
+    if (keyHolding && dt < -START_EARLY) {
+      slide.preHold = true
       return
     }
 
-   if (slide.currentIndex >= slide.cachedPoints.length) {
-    slide.finished = true
-    slide.waitingForEnd = true
-    slide.endTime = slide.time + slide.cachedPoints.at(-1).t
-  }
+    // เริ่ม Slide
+    if (keyHolding && adt <= SLIDE_TIMING.GOOD + START_EARLY) {
+      slide.started = true
+      slide.holdStartTime = gameNow
+      slide.lastComboTick = gameNow
+      slide.currentHoldLane = point.lane
+      activeSlide = slide
+      slide.preHold = false
 
+      slide.headRank =
+        adt <= SLIDE_TIMING.PERFECT * 1.35 ? "PERFECT" :
+        adt <= SLIDE_TIMING.GREAT   * 1.35 ? "GREAT"   :
+                                            "GOOD"
+
+      showFeedback(slide.headRank)
+
+      slide.currentIndex = 1
+      slide.lastHoldTime = gameNow
+      slide.releaseGrace = 0
+      slide.holdTickTimer = 0
+      return
+    }
+
+    // เลยหัวจริง → MISS
+    if (!slide.preHold && dt > SLIDE_TIMING.GOOD) {
+      slide.failed = true
+      combo = 0
+      updateComboScore()
+      showFeedback("MISS")
+      clearActiveSlide(slide)
+    }
+
+    slide.preHold = false
     return
   }
-  else if (!slide.started && dt > SLIDE_TIMING.GOOD) {
-    slide.failed = true
-    clearActiveSlide(slide)
-    combo = 0
-    updateComboScore()
-    showFeedback("MISS")
+
+  /* ======================================================
+     PLAYING (HOLDING)
+  ====================================================== */
+
+  /* ======================================================
+    HOLDING (TIME-BASED LIKE LONG NOTE)
+  ====================================================== */
+
+  // ---------- TIME ----------
+  const now = gameNow
+  const holdElapsed = now - slide.holdStartTime
+
+  // ---------- LANE CHECK (SOFT) ----------
+  const targetLane = point.lane
+  const laneTolerance = 1
+
+  const isHoldingLane =
+    keysPressed[targetLane] ||
+    keysPressed[targetLane - laneTolerance] ||
+    keysPressed[targetLane + laneTolerance]
+
+  // ---------- RELEASE GRACE ----------
+  const SLIDE_RELEASE_GRACE_MS = 120
+
+  if (!isHoldingLane) {
+    slide.releaseGrace += now - slide.lastHoldTime
+
+    if (slide.releaseGrace > SLIDE_RELEASE_GRACE_MS) {
+      slide.failed = true
+      combo = 0
+      updateComboScore()
+      showFeedback("MISS")
+      clearActiveSlide(slide)
+      return
+    }
+  } else {
+    slide.releaseGrace = 0
   }
 
-  // ===== END JUDGE (LIKE LONG NOTE) =====
+  slide.lastHoldTime = now
+
+  // ---------- COMBO TICK (ABSOLUTE TIME) ----------
+  const SLIDE_HOLD_COMBO_INTERVAL = 120
+
+  while (now - slide.lastComboTick >= SLIDE_HOLD_COMBO_INTERVAL) {
+    combo++
+    updateComboScore()
+    showHoldFeedback(slide.headRank)
+    slide.lastComboTick += SLIDE_HOLD_COMBO_INTERVAL
+  }
+
+  /* ======================================================
+     NODE PASS (เปลี่ยนเลน)
+  ====================================================== */
+
+  const NODE_WINDOW_SCALE = 1.5
+
+  if (
+    dt >= -SLIDE_TIMING.GOOD * NODE_WINDOW_SCALE &&
+    dt <=  SLIDE_TIMING.GOOD * NODE_WINDOW_SCALE &&
+    !slide.pointHit[i]
+  ) {
+    slide.pointHit[i] = true
+    slide.currentIndex++
+  }
+
+  /* ======================================================
+     END JUDGE (TAIL)
+  ====================================================== */
+
+  if (slide.currentIndex >= slide.cachedPoints.length) {
+    if (!slide.waitingForEnd) {
+      slide.waitingForEnd = true
+      slide.endTime = slide.time + slide.cachedPoints.at(-1).t
+    }
+  }
+
   if (slide.waitingForEnd && !slide.endJudged) {
     const dtEnd = gameNow - slide.endTime
     const adtEnd = Math.abs(dtEnd)
 
-    // ผู้เล่นยังถืออยู่
-    const END_SCALE = 2.0
-    if (keyHolding && adtEnd <= SLIDE_TIMING.GOOD * END_SCALE) {
+    if (keyHolding && adtEnd <= SLIDE_TIMING.GOOD * 2.0) {
       slide.endRank =
-        adtEnd <= SLIDE_TIMING.PERFECT * END_SCALE ? "PERFECT" :
-        adtEnd <= SLIDE_TIMING.GREAT   * END_SCALE ? "GREAT"   :
-                                                    "GOOD"
+        adtEnd <= SLIDE_TIMING.PERFECT ? "PERFECT" :
+        adtEnd <= SLIDE_TIMING.GREAT   ? "GREAT"   :
+                                         "GOOD"
 
       const finalRank = mergeRank(slide.headRank, slide.endRank)
       showFeedback(finalRank)
+
       combo++
       updateComboScore()
 
       slide.endJudged = true
-      slide.waitingForEnd = false
       slide.finished = true
-      
+      clearActiveSlide(slide)
+      return
     }
 
-    // ปล่อยช้าเกิน window
-    else if (dtEnd > SLIDE_TIMING.GOOD) {
+    // ปล่อยก่อนจบ
+    if (dtEnd > SLIDE_TIMING.GOOD) {
       slide.failed = true
-      slide.endJudged = true
-      clearActiveSlide(slide)
       combo = 0
       updateComboScore()
       showFeedback("MISS")
+      clearActiveSlide(slide)
+      return
     }
-
-    return
   }
 
-  // ===== FINALIZE SLIDE (SAFE VERSION) =====
+  /* ======================================================
+     FINALIZE
+  ====================================================== */
+
   if (slide.finished) {
-    const elapsed = gameNow - slide.endTime
-
-    // รอให้ผ่าน hitLine + buffer จริง
-    if (elapsed > SLIDE_END_BUFFER_MS) {
+    if (gameNow > slide.endTime + SLIDE_END_BUFFER_MS) {
       slide.dead = true
-      clearActiveSlide(slide)
-    }
-  }
-
-  if (slide.failed) {
-    const last = slide.cachedPoints[slide.cachedPoints.length - 1];
-    if (gameNow > slide.time + last.t + END_HOLD_TOLERANCE) {
-      slide.dead = true;
-      clearActiveSlide(slide)
     }
   }
 }
