@@ -814,7 +814,7 @@ function updateSlideGameplay(slide) {
   slide.lastHoldTime = gameNow
 
   if (!slide.waitingForEnd) {
-    const RELEASE_GRACE = 100
+    const RELEASE_GRACE = 80
 
     if (!keyHolding) {
       slide.releaseGrace += delta
@@ -834,7 +834,7 @@ function updateSlideGameplay(slide) {
   /* ===============================
      HOLD COMBO TICK (TIME-BASED)
   =============================== */
-  const HOLD_INTERVAL = 120
+  const HOLD_INTERVAL = 140
   slide.holdTickTimer += delta
 
   while (slide.holdTickTimer >= HOLD_INTERVAL) {
@@ -861,7 +861,7 @@ function updateSlideGameplay(slide) {
     const adtLane = Math.abs(dtLane)
 
     const requiredLane = p.lane
-    const SLIDE_LANE_WINDOW = SLIDE_TIMING.GOOD * 0.6
+    const SLIDE_LANE_WINDOW = SLIDE_TIMING.GREAT
 
     // ===== กดย้ายเลนสำเร็จ =====
     if (keysPressed[requiredLane] && adtLane <= SLIDE_LANE_WINDOW) {
@@ -1234,8 +1234,9 @@ function drawHitLineByLane() {
 function drawLaneButtons() {
   laneData.forEach((lane, i) => {
     const isPressed = keysPressed[i];
-    const buttonTopY = hitLine + 10;
-    const buttonBottomY = hitLine + 120;
+    const BUTTON_OFFSET = 60; // ยกปุ่มขึ้นจาก hitLine
+    const buttonTopY = hitLine - BUTTON_OFFSET; 
+    const buttonBottomY = hitLine - BUTTON_OFFSET + 150; // ปรับความสูงปุ่มตามเดิม
     const pressOffset = pressDepth[i];
 
     const tl = project(lane.x, buttonTopY + pressOffset);
