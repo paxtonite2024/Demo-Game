@@ -54,6 +54,8 @@ const SLIDE_END_BUFFER_MS = 250;
 const SAFE_BOTTOM = window.safeAreaInsetBottom || 20;
 const hitLine = canvas.height - 80;
 const activePointers = new Map();
+const PRE_ROLL_TIME = 1000;
+
 
 
 let bgCoverImg = null;
@@ -71,6 +73,7 @@ let hitLineEffect = {
   timer: 0
 };
 let gameStartTime = 0;
+let audioStarted = false;
 let holdFeedbackActive = false;
 let currentHoldRank = "PERFECT"
 let gameNow = 0;
@@ -80,7 +83,18 @@ let activeHoldCount = 0;
 let hitEffects = [];
 let holdEffects = {};
 let activeSlide = null
-let uiMode = "select"; 
+let uiMode = "select";
+let isPaused = false;
+let pauseStartTime = 0;
+let preRollRemaining = PRE_ROLL_TIME;
+let phase = "preroll";
+let notesReady = false;
+let audioTimeOffset = 0;
+let lastFrameTime = null;
+let justStartedAudio = false;
+let audioPrimed = false;
+let introPhase = 0; // 0 = ปกติ / 1-4 = intro
+let introStartTime = 0;
 
 // ===============================
 // Camera (Bird Eye View)
@@ -544,7 +558,7 @@ class HitEffect {
     const p = project(this.x, this.y);
 
     const pulse = 1 + Math.sin((1 - this.life) * Math.PI) * 0.15;
-    const baseRadius = 12 * p.scale * pulse;
+    const baseRadius = 24 * p.scale * pulse;
 
     ctx.save();
     ctx.translate(p.x, p.y);
@@ -615,14 +629,14 @@ function drawHoldEffects() {
     ctx.strokeStyle = "#AFFFFF";
     ctx.lineWidth = 2.5 * p.scale;
 
-    const rings = 3;
-    const baseRadius = 16 * p.scale * pulse;
+    const rings = 4;
+    const baseRadius = 24 * p.scale * pulse;
 
     for (let i = 0; i < rings; i++) {
       const wave =
         Math.sin(effect.time - i * 0.7) * 0.15;
 
-      const r = baseRadius + i * 14 * p.scale + wave * 10 * p.scale;
+      const r = baseRadius + i * 14 * p.scale + wave * 12 * p.scale;
 
       ctx.beginPath();
       ctx.arc(0, 0, r, 0, Math.PI * 2);
@@ -674,21 +688,27 @@ function spawnNotesByTime() {
 
 function updateNotes() {
   notes.forEach(note => {
+    // คำนวณตำแหน่งตามเวลาปัจจุบัน + SPAWN_LEAD_TIME
+    const timeUntilHit = note.time - gameNow;
+
+    // ให้โน้ตเริ่มจากด้านบนล่วงหน้า SPAWN_LEAD_TIME
+    note.y = hitLine - timeUntilHit * PIXELS_PER_MS * NOTE_SPEED;
+
+    // สำหรับ Long Note / body
     note.update();
 
     if (note.isMissed()) {
-
       // ===== NORMAL NOTE =====
       if (note.type === "normal") {
         note.active = false;
         note.wasHit = true;
         judgeEvents.push({
-        time: gameNow,
-        type: "MISS",
-        rank: null,
-        lane: note.lane,
-        noteId: note.time
-      });
+          time: gameNow,
+          type: "MISS",
+          rank: null,
+          lane: note.lane,
+          noteId: note.time
+        });
       }
 
       // ===== LONG NOTE : ไม่เคยกดเลย =====
@@ -698,7 +718,6 @@ function updateNotes() {
         !note.holdFailed &&
         !note.missReported
       ) {
-
         judgeEvents.push({
           time: note.time + HIT_WINDOW_GOOD_MS,
           type: "MISS",
@@ -712,21 +731,16 @@ function updateNotes() {
     }
   });
 
-  // ❗ ลบโน้ตเมื่อ "ตายจริง" เท่านั้น
+  // ลบโน้ตที่ตายแล้ว
   notes = notes.filter(note => !note.dead);
 
   slideNotes.forEach(slide => {
-    slide.update()
-
-    if (activeSlide && activeSlide.dead) {
-      activeSlide = null
-    }
-
-    updateSlideGameplay(slide)
-  })
-
-    slideNotes = slideNotes.filter(slide => !slide.dead);
-  }
+    slide.update();
+    if (activeSlide && activeSlide.dead) activeSlide = null;
+    updateSlideGameplay(slide);
+  });
+  slideNotes = slideNotes.filter(slide => !slide.dead);
+}
 
 function updateSlideGameplay(slide) {
   if (!slide.active || slide.dead || slide.failed) return
@@ -814,7 +828,7 @@ function updateSlideGameplay(slide) {
   slide.lastHoldTime = gameNow
 
   if (!slide.waitingForEnd) {
-    const RELEASE_GRACE = 80
+    const RELEASE_GRACE = 100
 
     if (!keyHolding) {
       slide.releaseGrace += delta
@@ -834,7 +848,7 @@ function updateSlideGameplay(slide) {
   /* ===============================
      HOLD COMBO TICK (TIME-BASED)
   =============================== */
-  const HOLD_INTERVAL = 140
+  const HOLD_INTERVAL = 120
   slide.holdTickTimer += delta
 
   while (slide.holdTickTimer >= HOLD_INTERVAL) {
@@ -861,7 +875,7 @@ function updateSlideGameplay(slide) {
     const adtLane = Math.abs(dtLane)
 
     const requiredLane = p.lane
-    const SLIDE_LANE_WINDOW = SLIDE_TIMING.GREAT
+    const SLIDE_LANE_WINDOW = SLIDE_TIMING.GOOD * 0.6
 
     // ===== กดย้ายเลนสำเร็จ =====
     if (keysPressed[requiredLane] && adtLane <= SLIDE_LANE_WINDOW) {
@@ -1056,6 +1070,11 @@ function drawLaneVisual() {
   laneGrad.addColorStop(1, "rgba(0,0,0,0.9)");
   ctx.fillStyle = laneGrad;
 
+  if (introPhase === 2) {
+    ctx.shadowColor = "rgba(255, 255, 255, 0.6)";
+    ctx.shadowBlur = 20;
+  }
+
   // ===== LANE SURFACE + HIGHLIGHT =====
   for (let i = 0; i < laneData.length; i++) {
     const lane = laneData[i];
@@ -1232,11 +1251,11 @@ function drawHitLineByLane() {
 }
 
 function drawLaneButtons() {
+  const BUTTON_OFFSET = 60 + SAFE_BOTTOM; 
   laneData.forEach((lane, i) => {
     const isPressed = keysPressed[i];
-    const BUTTON_OFFSET = 60; // ยกปุ่มขึ้นจาก hitLine
-    const buttonTopY = hitLine - BUTTON_OFFSET; 
-    const buttonBottomY = hitLine - BUTTON_OFFSET + 150; // ปรับความสูงปุ่มตามเดิม
+    const buttonTopY = hitLine - BUTTON_OFFSET;
+    const buttonBottomY = hitLine + 120;
     const pressOffset = pressDepth[i];
 
     const tl = project(lane.x, buttonTopY + pressOffset);
@@ -1589,7 +1608,21 @@ function drawCoverFit(ctx, canvas, img) {
   ctx.drawImage(img, x, y, w, h);
 }
 
+function easeInOut(t) {
+  return t < 0.5
+    ? 2 * t * t
+    : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+function clamp01(v) {
+  return Math.max(0, Math.min(1, v));
+}
+
 function loop() {
+
+  ctx.filter = "none";
+  ctx.globalAlpha = 1;
+
   // 1. วาดพื้นหลังด้วย ambient color
   const grad = ctx.createRadialGradient(
     canvas.width / 2,
@@ -1617,36 +1650,155 @@ function loop() {
   ctx.fillStyle = v;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  updateLaneEffects();
+  let introP = 1; // default = ปกติ
+
+  if (gameStarted) {
+    // ใช้ช่วง pre-roll ที่คุณมีอยู่แล้ว
+    const INTRO_TIME = 2000; // 2 วิ
+    introP = clamp01((gameNow + INTRO_TIME) / INTRO_TIME);
+    introP = easeInOut(introP);
+  }
+
+  if (introPhase > 0) {
+    const t = performance.now() - introStartTime;
+
+    if (t < 500) introPhase = 1;
+    else if (t < 1000) introPhase = 2;
+    else if (t < 2000) introPhase = 3;
+    else introPhase = 4;
+  }
+
+  if (!isPaused) {
+    updateLaneEffects();
+    updateLaneHitState();
+
+    updateHitEffects();
+  }
+
+  applyLaneIntroStyle();
+
+  ctx.save();
+  ctx.globalAlpha = introP;
+  ctx.filter = `blur(${(1 - introP) * 10}px)`;
+
   drawLaneVisual();
+
+  ctx.restore();
+
   drawHitLineByLane();
+
+  ctx.save();
+  ctx.globalAlpha = introP;
+
   drawLaneReceivers();
-  updateLaneHitState();
   drawLaneButtons();
 
-  updateHitEffects();
+  ctx.restore();
+
   drawHitEffects();
   drawHoldEffects();
 
-  if (gameStarted) {
-    gameNow = audio.currentTime * 1000;
+  if (gameStarted && !isPaused && notesReady) {
+
+    // เดินเวลาเองก่อนเพลง
+    if (!audioStarted) {
+
+      const now = performance.now();
+
+      if (lastFrameTime === null) {
+        lastFrameTime = now;
+      }
+
+      let dt = now - lastFrameTime;
+      lastFrameTime = now;
+
+      // กันเฟรมกระโดดแรงเกิน
+      dt = Math.min(dt, 33);
+
+      gameNow += dt;
+
+       // 🔥 อุ่น audio ล่วงหน้า (ก่อนถึง 0)
+      if (!audioPrimed && gameNow >= -150) {
+        audio.muted = true;
+        audio.play();
+        audio.pause();
+        audio.currentTime = 0;
+        audio.muted = false;
+
+        audioPrimed = true;
+      }
+
+      if (gameNow >= 0) {
+        audio.play();
+        audioStarted = true;
+        audioTimeOffset = gameNow - audio.currentTime * 1000;
+        justStartedAudio = true;
+        lastFrameTime = null;
+      }
+    }
+    // หลังเพลงเริ่ม ใช้ audio เป็น master
+    else {
+      gameNow = audio.currentTime * 1000 + audioTimeOffset;
+    }
   }
 
   // smooth render time (กัน jitter)
-  renderNow += (gameNow - renderNow) * 0.25;
+  if (!isPaused) {
+
+    if (justStartedAudio) {
+      // 🔑 snap แค่ 1 เฟรม ตอนเปลี่ยนระบบเวลา
+      renderNow = gameNow;
+      justStartedAudio = false;
+    } else {
+      renderNow += (gameNow - renderNow) * 0.2;
+    }
+
+  }
   
 
+  if (!isPaused) {
     spawnNotesByTime();
     updateNotes();
     resolveJudgeEvents();
+  }
 
     drawSlideNotes();
     drawNotes();
     
+    if (isPaused) {
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 48px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("PAUSED", canvas.width / 2, canvas.height / 2);
+    }
+
+    if (introPhase === 3) {
+      const pulse = Math.sin(performance.now() * 0.004) * 0.5 + 0.5;
+
+      ctx.fillStyle = `rgba(255,200,150,${0.08 * pulse})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    if (introPhase === 4) {
+      introPhase = 0; // ปิดระบบ intro
+    }
+
     requestAnimationFrame(loop);
 }
 
+function applyLaneIntroStyle() {
+  if (introPhase === 1) {
+    ctx.globalAlpha = 0.3;
+    ctx.filter = "blur(8px)";
+  }
+}
+
 function pressLane(lane) {
+  if (isPaused) return; 
   if (keysPressed[lane]) return;
 
   keysPressed[lane] = true;
@@ -1656,6 +1808,7 @@ function pressLane(lane) {
 }
 
 function releaseLane(lane) {
+  if (isPaused) return; 
   if (!keysPressed[lane]) return;
 
   keysPressed[lane] = false;
@@ -1719,34 +1872,42 @@ startScreen.addEventListener("touchstart", () => {
 });
 
 function startGame() {
+  if (gameStarted) return;
+
   startScreen.style.display = "none";
   uiMode = "game";
   canvas.style.touchAction = "none";
   gameStarted = true;
 
-  // reset ทุกอย่าง
+  introPhase = 1;
+  introStartTime = performance.now();
+
+  // reset
   notes = [];
   noteIndex = 0;
-  gameNow = 0;
-  renderNow = 0;
   combo = 0;
   score = 0;
-
   updateComboScore();
   showFeedback("");
 
   audio.pause();
   audio.currentTime = 0;
+  audioStarted = false;
 
-  // โหลดโน้ต (ถ้ามี)
+  notesReady = false;
+
   if (currentSong.noteFile) {
     loadNoteData(currentSong.noteFile).then(() => {
-      audio.play();
+      notesReady = true;
+
+      gameNow = -(SPAWN_LEAD_TIME + PRE_ROLL_TIME);
+      renderNow = gameNow;
     });
   } else {
-    // เพลงที่ยังไม่มีโน้ต
     noteData = [];
-    audio.play();
+    notesReady = true;
+    gameNow = -(SPAWN_LEAD_TIME + PRE_ROLL_TIME);
+    renderNow = gameNow;
   }
 }
 
@@ -1846,6 +2007,28 @@ function resetGame() {
   audio.currentTime = 0;
 }
 
+function togglePause() {
+  if (!gameStarted) return;
+
+  if (!isPaused) {
+    // ⏸ pause
+    isPaused = true;
+    pauseStartTime = performance.now();
+    audio.pause();
+
+    keysPressed.fill(false);
+    buttons.forEach(btn => btn.classList.remove("active"));
+  } else {
+    // ▶ resume
+    isPaused = false;
+
+    // ขยับ gameStartTime เพื่อชดเชยเวลาที่หยุด
+    const pausedDuration = performance.now() - pauseStartTime;
+    gameStartTime += pausedDuration;
+
+    audio.play();
+  }
+}
 
 function endGame() {
   isGameRunning = false;
@@ -1993,4 +2176,23 @@ canvas.addEventListener("wheel", e => {
 
 audio.addEventListener("ended", () => {
   endGame();
+});
+
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    togglePause();
+  }
+});
+
+const pauseBtn = document.getElementById("pauseBtn");
+
+pauseBtn.addEventListener("click", e => {
+  e.stopPropagation();   // ⛔ กันไม่ให้ทะลุไปโดน canvas
+  togglePause();
+});
+
+pauseBtn.addEventListener("touchstart", e => {
+  e.preventDefault();    // ⛔ กัน double event (mobile)
+  e.stopPropagation();  // ⛔ กันกดเลน
+  togglePause();
 });
