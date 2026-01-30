@@ -95,6 +95,8 @@ let justStartedAudio = false;
 let audioPrimed = false;
 let introPhase = 0; // 0 = ปกติ / 1-4 = intro
 let introStartTime = 0;
+let bgCanvas = document.createElement("canvas");
+let bgCtx = bgCanvas.getContext("2d");
 
 // ===============================
 // Camera (Bird Eye View)
@@ -1618,37 +1620,44 @@ function clamp01(v) {
   return Math.max(0, Math.min(1, v));
 }
 
-function loop() {
+function buildStaticBackground() {
+  bgCanvas.width = canvas.width;
+  bgCanvas.height = canvas.height;
 
-  ctx.filter = "none";
-  ctx.globalAlpha = 1;
-
-  // 1. วาดพื้นหลังด้วย ambient color
-  const grad = ctx.createRadialGradient(
-    canvas.width / 2,
-    canvas.height / 2,
-    canvas.width * 0.1,
-    canvas.width / 2,
-    canvas.height / 2,
-    canvas.width * 0.8
+  // 2. ambient gradient (อิงปกเพลงได้เต็มที่)
+  const grad = bgCtx.createRadialGradient(
+    bgCanvas.width / 2,
+    bgCanvas.height / 2,
+    bgCanvas.width * 0.1,
+    bgCanvas.width / 2,
+    bgCanvas.height / 2,
+    bgCanvas.width * 0.8
   );
 
   grad.addColorStop(0, bgAmbientColor);
   grad.addColorStop(1, "rgba(0,0,0,0.85)");
 
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  bgCtx.fillStyle = grad;
+  bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
 
-  // 2. วาดปกแบบ Fit
-  drawCoverFit(ctx, canvas, bgCoverImg);
-
-  // 3. (optional) overlay มืดนิดนึงให้ lane เด่น
-  const v = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  // 1. วาดปกเพลง
+  drawCoverFit(bgCtx, bgCanvas, bgCoverImg);
+  
+  // 3. overlay มืด
+  const v = bgCtx.createLinearGradient(0, 0, 0, bgCanvas.height);
   v.addColorStop(0, "rgba(0,0,0,0.2)");
   v.addColorStop(1, "rgba(0,0,0,0.45)");
 
-  ctx.fillStyle = v;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  bgCtx.fillStyle = v;
+  bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+}
+
+function loop() {
+
+  ctx.filter = "none";
+  ctx.globalAlpha = 1;
+
+  ctx.drawImage(bgCanvas, 0, 0);
 
   let introP = 1; // default = ปกติ
 
@@ -1679,10 +1688,14 @@ function loop() {
 
   ctx.save();
   ctx.globalAlpha = introP;
-  ctx.filter = `blur(${(1 - introP) * 10}px)`;
+
+  if (introPhase > 0) {
+    ctx.filter = `blur(${(1 - introP) * 10}px)`;
+  } else {
+    ctx.filter = "none";
+  }
 
   drawLaneVisual();
-
   ctx.restore();
 
   drawHitLineByLane();
@@ -1895,6 +1908,10 @@ function startGame() {
   audioStarted = false;
 
   notesReady = false;
+
+  if (bgCoverImg && bgCoverImg.complete) {
+    buildStaticBackground();
+  }
 
   if (currentSong.noteFile) {
     loadNoteData(currentSong.noteFile).then(() => {
