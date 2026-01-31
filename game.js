@@ -43,6 +43,7 @@ const HIT_WINDOW_GREAT_MS = 300;
 const HIT_WINDOW_GOOD_MS = 500;
 const END_HOLD_TOLERANCE = 500; // ปล่อยได้ก่อนถึงเส้นปลาย XXpx โดยไม่ถือว่า MISS
 const SPAWN_LEAD_TIME = 2000; // ms
+const SLIDE_LEAD_TIME = 5000;
 const HIT_EARLY_BUFFER = 100; // ms
 const NOTE_SPEED = 12.0;
 const SLIDE_TIMING = {
@@ -668,23 +669,23 @@ function spawnNotesByTime() {
     noteData[noteIndex].time <= currentTime + SPAWN_LEAD_TIME
   ) {
     const n = noteData[noteIndex];
+    const lead =
+      (n.type === "slide" || n.type === "path")
+        ? SLIDE_LEAD_TIME
+        : SPAWN_LEAD_TIME;
 
-    if (n.type === "slide" || n.type === "path") {
-      slideNotes.push(
-        new SlideNote(n.time, n.points)
-      );
+    if (n.time <= currentTime + lead) {
+      if (n.type === "slide" || n.type === "path") {
+        slideNotes.push(new SlideNote(n.time, n.points));
+      } else {
+        notes.push(
+          new Note(n.lane, n.time, n.type || "normal", n.length || 0)
+        );
+      }
+      noteIndex++;
     } else {
-      notes.push(
-        new Note(
-          n.lane,
-          n.time,
-          n.type || "normal",
-          n.length || 0
-        )
-      );
+      break;
     }
-
-    noteIndex++;
   }
 }
 
@@ -1654,8 +1655,11 @@ function buildStaticBackground() {
 
 function loop() {
 
-  ctx.filter = "none";
+  // 🔒 RESET CANVAS STATE (ต้องอยู่บนสุดจริง ๆ)
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
+  ctx.filter = "none";
+  ctx.globalCompositeOperation = "source-over";
 
   ctx.drawImage(bgCanvas, 0, 0);
 
@@ -1892,11 +1896,15 @@ function startGame() {
   canvas.style.touchAction = "none";
   gameStarted = true;
 
+  buildStaticBackground();
+
   introPhase = 1;
   introStartTime = performance.now();
 
   // reset
   notes = [];
+  slideNotes = [];  
+  activeSlide = null;
   noteIndex = 0;
   combo = 0;
   score = 0;
