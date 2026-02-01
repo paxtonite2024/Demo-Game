@@ -338,7 +338,7 @@ draw() {
     // ===== HEAD =====
     ctx.fillStyle = headColor;
     const p = project(this.x + this.width / 2, this.renderY);
-    const w = this.width * p.scale;
+    const w = this.width * p.scale * 0.9;
     const h = this.height * p.scale;
 
     ctx.fillRect(
@@ -353,7 +353,7 @@ draw() {
     // normal note
     ctx.fillStyle = "#fff";
     const p = project(this.x + this.width / 2, this.y);
-    const w = this.width * p.scale;
+    const w = this.width * p.scale * 0.9;
     const h = this.height * p.scale;
 
     ctx.fillRect(
@@ -518,7 +518,7 @@ class SlideNote {
       const lane = this.cachedPoints[i].lane;
 
       if (i === 0) {        // HEAD
-        w = laneData[lane].width * proj.scale;
+        w = laneData[lane].width * proj.scale * 0.9;
         h = 25 * proj.scale;
         color = "rgba(0,255,255,1)";
       } else if (i === len - 1) { // END
@@ -526,8 +526,8 @@ class SlideNote {
         h = 25 * proj.scale * 0.5;
         color = "rgba(0,255,255,0.9)";
       } else {              // NODE
-        w = laneData[lane].width * proj.scale * 0.35;
-        h = 25 * proj.scale * 0.35;
+        w = laneData[lane].width * proj.scale * 0.4;
+        h = 25 * proj.scale * 0.4;
         color = "rgba(0,255,255,0.85)";
       }
 
