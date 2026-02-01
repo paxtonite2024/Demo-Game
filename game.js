@@ -410,9 +410,8 @@ class SlideNote {
     this.time = time
 
     // ===== POINT DATA (ห้ามหาย) =====
-    const minT = Math.min(...points.map(p => p.t))
     this.points = points
-      .map(p => ({ lane: p.lane, t: p.t - minT }))
+      .map(p => ({ lane: p.lane, t: p.t }))
       .sort((a, b) => a.t - b.t)
 
     this.cachedPoints = this.points.map(p => ({
