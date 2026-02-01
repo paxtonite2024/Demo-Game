@@ -105,7 +105,6 @@ let bgCtx = bgCanvas.getContext("2d");
 const CAMERA = {
   depthScale: 0.00175 // ปรับได้: ยิ่งมากยิ่ง perspective แรง
 };
-const RENDER_OFFSET_Y = -500;
 
 // แปลง world (x,y) -> screen (x,y)
 function project(x, y) {
@@ -467,9 +466,6 @@ class SlideNote {
       this.renderPoints[i].y = targetY;
       this.renderPoints[i].scale = Math.max(proj.scale, 0.01);
     }
-
-    // ตายเมื่อ point สุดท้ายผ่าน hitLine + buffer
-    const last = this.cachedPoints[this.cachedPoints.length - 1];
     
   }
 
@@ -1064,7 +1060,7 @@ function drawSlideNotes() {
 function drawLaneVisual() {
   ctx.save();
 
-  const laneTopY = hitLine - canvas.height * 10;
+  const laneTopY = hitLine - canvas.height * 12;
 
   const laneGrad = ctx.createLinearGradient(0, laneTopY, 0, hitLine);
   laneGrad.addColorStop(0.9, "rgba(0, 0, 0, 0.2)");
