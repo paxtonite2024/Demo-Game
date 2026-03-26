@@ -98,6 +98,7 @@ let introPhase = 0; // 0 = ปกติ / 1-4 = intro
 let introStartTime = 0;
 let bgCanvas = document.createElement("canvas");
 let bgCtx = bgCanvas.getContext("2d");
+let laneGlow = 0;
 
 // ===============================
 // Camera (Bird Eye View)
@@ -149,7 +150,7 @@ class Note {
   this.ended = false;
   this.holdProgress = 0;
   this.lastHoldComboTime = 0;
-  this.holdComboInterval = 120; // ms ต่อ 1 combo (ปรับฟิลตรงนี้)
+  this.holdComboInterval = 60; // ms ต่อ 1 combo (ปรับฟิลตรงนี้)
   this.wasHeld = false;        // เคยกด Long Note นี้หรือยัง
   this.judgement = "pending";
   this.holdFailed = false;    // เคยกด แต่ปล่อยก่อนหมด
@@ -1144,10 +1145,13 @@ function drawLaneVisual() {
   // ให้โลก lane ยาวลงไปอีก (ต่ำกว่า hitline)
   const laneBottomWorldY = hitLine + canvas.height * 0.15;
 
-  ctx.lineWidth = 5;
-  ctx.shadowBlur = 20;
-  ctx.shadowColor = "rgba(120,255,255,0.8)";
-  ctx.strokeStyle = "rgba(0,255,255,0.5)";
+  const pulse = Math.sin(performance.now() * 0.007) * 0.5 + 0.5;
+  const glow = Math.min(1, laneGlow + pulse * 0.5);
+
+  ctx.lineWidth = 3 + glow * 5;
+  ctx.shadowBlur = 15 + glow * 30;
+  ctx.shadowColor = `rgba(255,255,255,${0.5 + glow * 0.5})`;
+  ctx.strokeStyle = `rgba(255,255,255,${0.4 + glow * 0.6})`;
 
   // LEFT MOST
   {
@@ -1658,6 +1662,7 @@ function loop() {
 
   ctx.drawImage(bgCanvas, 0, 0);
 
+  laneGlow *= 0.9;
   let introP = 1; // default = ปกติ
 
   if (gameStarted) {
@@ -1933,13 +1938,6 @@ function startGame() {
 
 const songs = [
   {
-    name: "Chocolate",
-    file: "audio/Chocolate.mp3",
-    noteFile: "noteData/Chocolate.json",
-    cover: "images/videoframe_117532.png",
-    artist: "Plasui Plasui"
-  },
-  {
     name: "น้ำค้าง",
     file: "audio/Desktop Error  น้ำค้าง.mp3",
     noteFile: "noteData/น้ำค้าง.json",
@@ -1966,6 +1964,13 @@ const songs = [
     noteFile: "noteData/noteData (2).json",
     cover: "images/videoframe_7243.png",
     artist: "Solitude Is Bliss"
+  },
+  {
+    name: "ฝืน",
+    file: "audio/ฝืน.mp3",
+    noteFile: "noteData/ฝืน.json",
+    cover: "images/videoframe_6558.png",
+    artist: "Greasy Cafe"
   }
 ];
 
